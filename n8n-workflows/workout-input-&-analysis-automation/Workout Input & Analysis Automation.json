@@ -1,0 +1,347 @@
+{
+  "name": "Workout Input & Analysis Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "lydiahwairurik@gmail.com",
+        "subject": "Workout Tracking",
+        "message": "Way to go—you showed up and crushed it today! 🙌 Every session is a step closer to your goals, and I’m here to help you track that progress. When you have a sec, fill in the form below",
+        "responseType": "customForm",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Day",
+              "placeholder": "Monday",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Section of the body",
+              "placeholder": "Upper body",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Number of sets and reps",
+              "placeholder": "Bicep curls 3*10",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        176,
+        0
+      ],
+      "id": "b9671fce-291a-4337-8d42-6d0ee99f5959",
+      "name": "Send message and wait for response",
+      "webhookId": "b1f813dd-5c0b-45dc-b260-56ba041d6506",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jY2Gq16EoZ0PFywT",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "lydiahwairurik@gmail.com",
+        "subject": "Weekly Workout Summary",
+        "message": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "764d6de1-8ad4-4b60-b313-7547dd7c0688",
+      "name": "Send a message",
+      "webhookId": "3bafe758-dec8-45a7-951d-f357cbde8974",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jY2Gq16EoZ0PFywT",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        0
+      ],
+      "id": "79422d2a-8025-4434-9c11-b31eb8bab716",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1hINudWl8hBPT1T_ab_iQ_El8MD-hcvIu_LPHKfccmDY",
+          "mode": "list",
+          "cachedResultName": "Workout DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hINudWl8hBPT1T_ab_iQ_El8MD-hcvIu_LPHKfccmDY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hINudWl8hBPT1T_ab_iQ_El8MD-hcvIu_LPHKfccmDY/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Section of the body": "={{ $json.data['Section of the body'] }}",
+            "Number of sets and reps": "={{ $json.data['Number of sets and reps'] }}",
+            "Day": "={{ $json.data.Day }}",
+            "data": "={{ $json.data }}"
+          },
+          "matchingColumns": [
+            "data"
+          ],
+          "schema": [
+            {
+              "id": "Day",
+              "displayName": "Day",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Section of the body",
+              "displayName": "Section of the body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Number of sets and reps",
+              "displayName": "Number of sets and reps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        0
+      ],
+      "id": "51a29c66-897b-423d-a024-7c5c7b604558",
+      "name": "Update Workout DB",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "P6mu3JkFHyIaniqJ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Analyse the workouts described in the system prompt. the user is a girl named Lydiah. Use a friendly tone with emojis",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a fitness performance assistant named fitty analyzing weekly gym workout data.\n\nYour task is to:\nAnalyze the workout logs provided\nEvaluate consistency, workout frequency, and training intensity (sets completed)\nIdentify strengths and gaps\nProvide clear, practical recommendations\nPredict expected results if improvements are followed\nFormat the message professionally \n\nFormatting Instructions (VERY IMPORTANT)\nStructure your response exactly as follows:\nUse bold headings\nLeave a blank line between sections\nUse short paragraphs\nUse numbered lists for recommendations and action steps\nKeep the tone encouraging, professional, and actionable\nDo NOT output raw data or tables unless necessary\nKeep it brief\n\nRequired Output Structure\nWeekly Workout Summary\nBrief overview of the user’s performance and consistency.\nConsistency Analysis\nExplain how many days were completed, patterns noticed, and commitment level.\nStrengths\n• List positive habits or achievements\nAreas to Improve\n• List weaknesses or gaps\nRecommendations\n1. First actionable recommendation\n2. Second actionable recommendation\n3. Third actionable recommendation\nExpected Results\nExplain what improvements the user can expect in strength, endurance, or fitness if they follow the plan.\nMotivation\nEnd with 1–2 short encouraging sentences.\n\nData to Analyze\n{{ $('Update Workout DB').item.json.Day }}\n\n{{ $('Update Workout DB').item.json['Section of the body'] }}\n{{ $('Update Workout DB').item.json['Number of sets and reps'] }}\n\n\n\n\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        832,
+        0
+      ],
+      "id": "9a3de923-481b-49cd-afef-50da0d604caa",
+      "name": "Analyse Workout DB data"
+    },
+    {
+      "parameters": {
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        608,
+        0
+      ],
+      "id": "43381a0f-bd23-4ef2-8b6c-d1595712f394",
+      "name": "Wait",
+      "webhookId": "bbf70b12-8dc3-4727-9540-07ac9040a9a5"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        848,
+        176
+      ],
+      "id": "9b33cd0d-b29a-46ec-b29e-433892fed62d",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "NEJ4PwmhWsxTA0Rl",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        0
+      ],
+      "id": "d71f8c85-7fae-41dc-8950-e28584282d9b",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "Update Workout DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Workout DB": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse Workout DB data": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Analyse Workout DB data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyse Workout DB data",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Africa/Nairobi",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": -1
+  },
+  "versionId": "1d2ecbf9-2423-47d6-b123-8c6e30da1611",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1a8d70e9c8918cfb41efabc17ab0b7bd228876c5646a643d7e9d6c8737a889a1"
+  },
+  "id": "vGuA7wuhD_X_NVf6qvEt3",
+  "tags": []
+}
