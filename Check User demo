@@ -1,1 +1,0 @@
-Check whether user is saved in google sheets. If not, add them, send welcome email and send their details in slack

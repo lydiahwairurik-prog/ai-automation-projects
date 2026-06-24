@@ -1,0 +1,229 @@
+{
+  "name": "Check User",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/contact-form",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        416,
+        272
+      ],
+      "id": "531e5d36-d8e4-4069-a854-f388f2b1d245",
+      "name": "Webhook",
+      "webhookId": "957f0b3e-d906-4f84-9dac-aa1d3c4a2561"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b8fac649-56b5-49c4-bb63-94539543db8e",
+              "leftValue": "={{ $json.alreadyExists }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1040,
+        272
+      ],
+      "id": "1c76ae11-5334-43b6-9904-cbc30ce158d5",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { name, email } = $input.first().json;\n//email \nconsole.log(`Sending welcome email to ${name} <${email}>`);\nif (!email.includes('@')) throw new Error('EMAIL_SEND_FAILED');\nreturn [{ json: { ...$input.first().json, emailSent: true, emailSentAt: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        368
+      ],
+      "id": "87985e38-8af3-4d51-bd8c-13e9f89f09ef",
+      "name": "Send email"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { name, email, message, submittedAt } = $input.first().json;\nconst payload = {\n  text: `📬 New contact form submission`,\n  blocks: [\n    { type: 'section', text: { type: 'mrkdwn', text: `*Name:* ${name}\\n*Email:* ${email}\\n*Message:* ${message}\\n*Submitted:* ${submittedAt}` } }\n  ]\n};\nconsole.log('Posting to Slack:', JSON.stringify(payload));\nreturn [{ json: { ...($input.first().json), slackNotified: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        368
+      ],
+      "id": "5f6b5422-79e4-4131-948a-4fc29f8901f6",
+      "name": "Post to slack"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": 200, \"body\": { \"message\": \"Contact received. Welcome email sent.\" } }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1872,
+        368
+      ],
+      "id": "2a40ecd5-edcd-400c-b93b-358cf6f0555f",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const contact = $input.first().json;\nconsole.log('Writing to sheet:', contact);\nif (Math.random() < 0.1) throw new Error('SHEETS_WRITE_FAILED');\nreturn [{ json: { ...contact, addedToSheet: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        368
+      ],
+      "id": "15d53a1a-e697-4b98-b447-69c4b2b5440e",
+      "name": "Add to sheets"
+    },
+    {
+      "parameters": {
+        "jsCode": "const EXISTING = ['alice@example.com', 'bob@example.com'];\nconst email = $input.first().json.email;\nreturn [{ json: { ...$input.first().json, alreadyExists: EXISTING.includes(email) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        272
+      ],
+      "id": "3e086c8f-7bc2-4d1b-95e9-0c6f6abe04e1",
+      "name": "Check google sheet"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { name, email } = body;\n\nif (!name || !email ) {\n  throw new Error('VALIDATION_ERROR: Missing required fields');\n}\n\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n  throw new Error('VALIDATION_ERROR: Invalid email format');\n}\n\nreturn [{ json: { name: name.trim(), email: email.toLowerCase().trim(), submittedAt: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        272
+      ],
+      "id": "005622e1-e43f-4fcc-a90a-01dcbe0fb5bf",
+      "name": "Validate"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Add to sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Post to slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to slack": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to sheets": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check google sheet": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate": {
+      "main": [
+        [
+          {
+            "node": "Check google sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "25715313-5b6f-4d79-b91e-117f741a2dda",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1a8d70e9c8918cfb41efabc17ab0b7bd228876c5646a643d7e9d6c8737a889a1"
+  },
+  "id": "O5XdVZRk8gaLORRjGxiky",
+  "tags": []
+}
