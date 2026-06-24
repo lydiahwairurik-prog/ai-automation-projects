@@ -1,0 +1,596 @@
+
+  "name": "Lead Routing Automation — Multi-Source",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-webform",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8315f5db-322d-493a-8a21-6a059dca3a08",
+      "name": "Trigger: Web Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -3344,
+        720
+      ],
+      "webhookId": "99558b24-5e9d-466b-9b8b-8cc7ccecd698"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulates polling a shared Gmail inbox for new lead emails.\n// In production replace with Gmail node + label filter.\nconst mockEmails = [\n  {\n    source: 'gmail',\n    name: 'Priya Nair',\n    email: 'priya@techspark.io',\n    company: 'TechSpark IO',\n    industry: 'SaaS',\n    companySize: 280,\n    message: 'Saw your product at SaaStock. We need a demo.'\n  },\n  {\n    source: 'gmail',\n    name: 'James Odhiambo',\n    email: 'james@retailco.ke',\n    company: 'RetailCo Kenya',\n    industry: 'Retail',\n    companySize: 45,\n    message: 'Interested in your pricing for SMEs.'\n  }\n];\nreturn mockEmails.map(item => ({ json: item }));"
+      },
+      "id": "bd8b60e7-1699-4362-b69f-7315793f67f4",
+      "name": "Trigger: Gmail (mock poll)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3344,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mockMessages = [\n  {\n    source: 'whatsapp',\n    name: 'Amara Diallo',\n    email: 'amara@finbridge.africa',\n    company: 'FinBridge Africa',\n    industry: 'Fintech',\n    companySize: 520,\n    phone: '+254700000001',\n    message: 'Hi, we are looking for an enterprise plan. 500+ seats.'\n  }\n];\nreturn mockMessages.map(item => ({ json: item }));"
+      },
+      "id": "bc94f5df-6281-4510-ba2e-4bbb2fdd8c50",
+      "name": "Trigger: WhatsApp (mock webhook)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3344,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "passThrough",
+        "options": {}
+      },
+      "id": "318eb672-0cc0-4072-9031-ca8275ace93e",
+      "name": "Merge: All Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -3104,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nconst name = (lead.name || lead.fullName || lead.contact_name || '').trim();\nconst email = (lead.email || lead.email_address || '').toLowerCase().trim();\nconst company = (lead.company || lead.company_name || lead.organisation || '').trim();\nconst industry = (lead.industry || lead.sector || 'Unknown').trim();\nconst companySize = parseInt(lead.companySize || lead.company_size || lead.employees || 0, 10);\nconst source = lead.source || 'unknown';\nconst phone = lead.phone || lead.phoneNumber || null;\nconst message = lead.message || lead.body || '';\n\nconst errors = [];\nif (!name) errors.push('missing name');\nif (!email && !phone) errors.push('missing both email and phone');\nif (!company) errors.push('missing company');\n\nif (errors.length > 0) {\n  return [{\n    json: {\n      _valid: false,\n      _errors: errors,\n      raw: lead,\n      source\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    _valid: true,\n    name,\n    email,\n    company,\n    industry,\n    companySize,\n    source,\n    phone,\n    message,\n    receivedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "cc7c732e-1b27-4e5d-83a6-7e5df5236bb4",
+      "name": "Normalize Lead Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2928,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._valid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "824fd101-59fe-483d-a931-907bedba8224",
+      "name": "IF: Lead is valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -2736,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconsole.error('INVALID LEAD — will not process:', JSON.stringify(lead));\nreturn [{ json: { logged: true, reason: lead._errors, source: lead.source, ts: new Date().toISOString() } }];"
+      },
+      "id": "f9724492-94e8-4295-939f-fc352be48183",
+      "name": "Log Invalid Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2736,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const EXISTING_CLIENTS = [\n  'alice@acmecorp.com',\n  'james@retailco.ke',\n  'bob@legacyinc.com'\n];\n\nconst lead = $input.first().json;\nconst email = lead.email || '';\nconst isExisting = EXISTING_CLIENTS.includes(email);\n\nreturn [{ json: { ...lead, _isExistingClient: isExisting } }];"
+      },
+      "id": "2a31ed52-b418-4125-8a12-82ef141b64e7",
+      "name": "Check Existing Client List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2512,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._isExistingClient }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "ad957e2b-9f9e-4d36-b2df-80948fc22893",
+      "name": "IF: Existing client?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -2304,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconsole.log(`Skipping existing client: ${lead.email}`);\nreturn [{ json: { skipped: true, reason: 'existing_client', email: lead.email } }];"
+      },
+      "id": "cd40274e-4044-4a1d-a5f3-ce3e06ec10a5",
+      "name": "Skip — Existing Client",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2304,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nconst HIGH_VALUE_INDUSTRIES = ['fintech', 'saas', 'enterprise software', 'banking', 'insurance'];\nconst MED_VALUE_INDUSTRIES  = ['retail', 'logistics', 'healthcare', 'education'];\n\nlet score = 0;\nconst reasons = [];\n\n// Company size score\nif (lead.companySize > 200) {\n  score += 40;\n  reasons.push('large company (+40)');\n} else if (lead.companySize > 50) {\n  score += 25;\n  reasons.push('mid-size company (+25)');\n} else if (lead.companySize > 10) {\n  score += 10;\n  reasons.push('small company (+10)');\n} else {\n  reasons.push('micro/unknown size (+0)');\n}\n\n// Industry score\nconst industryLower = (lead.industry || '').toLowerCase();\nif (HIGH_VALUE_INDUSTRIES.some(i => industryLower.includes(i))) {\n  score += 40;\n  reasons.push(`high-value industry: ${lead.industry} (+40)`);\n} else if (MED_VALUE_INDUSTRIES.some(i => industryLower.includes(i))) {\n  score += 20;\n  reasons.push(`medium-value industry: ${lead.industry} (+20)`);\n} else {\n  score += 5;\n  reasons.push(`other industry: ${lead.industry} (+5)`);\n}\n\n// Source bonus\nif (lead.source === 'whatsapp') {\n  score += 10;\n  reasons.push('WhatsApp inbound (+10)');\n} else if (lead.source === 'gmail') {\n  score += 5;\n  reasons.push('Gmail inbound (+5)');\n}\n\n\nlet _needsReview = false;\nif (!lead.companySize || lead.companySize === 0) {\n  score = Math.max(score - 10, 0);\n  _needsReview = true;\n  reasons.push('unknown company size — flagged for review (-10)');\n}\n\nreturn [{ json: { ...lead, _score: score, _scoreReasons: reasons, _needsReview } }];"
+      },
+      "id": "d47f97c6-ab33-482e-b027-ccbd44cb5f6f",
+      "name": "Score Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2304,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconst score = lead._score || 0;\n\nlet category;\nif (score >= 70) {\n  category = 'hot';\n} else if (score >= 35) {\n  category = 'warm';\n} else {\n  category = 'cold';\n}\n\nreturn [{ json: { ...lead, _category: category } }];"
+      },
+      "id": "08a95968-095c-4632-9e44-787df09213c4",
+      "name": "Categorise: Hot / Warm / Cold",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2096,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json._category }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "hot"
+            },
+            {
+              "value2": "warm",
+              "output": 1
+            },
+            {
+              "value2": "cold",
+              "output": 2
+            }
+          ]
+        },
+        "fallbackOutput": 3
+      },
+      "id": "90eeccdc-ad78-40dc-9d2e-575e0683dd65",
+      "name": "Switch: Route by Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -1872,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconst now = new Date();\nconst slotStart = new Date(now.getTime() + 24 * 60 * 60 * 1000); \nslotStart.setHours(10, 0, 0, 0);\nconst slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);\n\nif (Math.random() < 0.05) {\n  throw new Error('CALENDAR_CONFLICT: No slots available in next 24h');\n}\n\nconsole.log(`[HOT] Booking calendar for ${lead.name} at ${slotStart.toISOString()}`);\n\nreturn [{\n  json: {\n    ...lead,\n    _action: 'calendar_booked',\n    _calendarSlot: slotStart.toISOString(),\n    _calendarSlotEnd: slotEnd.toISOString(),\n    _notifyEmail: lead.email || null,\n    _notifyPhone: lead.phone || null\n  }\n}];"
+      },
+      "id": "133192e6-c803-4de3-80a9-c8d4d766aa11",
+      "name": "HOT: Book Sales Calendar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconsole.error(`[HOT LEAD CALENDAR FAIL] Manual booking needed for ${lead.name} <${lead.email}>`);\nreturn [{ json: { ...lead, _action: 'calendar_manual_needed', _alertSent: true } }];"
+      },
+      "id": "1e888ef6-25ac-43ae-a004-b622f9727efd",
+      "name": "HOT fallback: Slack alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nif (!lead.email) {\n  throw new Error('NO_EMAIL: Cannot send brochure — lead has no email address');\n}\n\nconst emailPayload = {\n  to: lead.email,\n  subject: `${lead.name}, here's what we can do for ${lead.company}`,\n  body: `Hi ${lead.name},\\n\\nThanks for reaching out via ${lead.source}. I've attached our product brochure tailored for the ${lead.industry} space.\\n\\nWe'd love to explore how we can help ${lead.company}.\\n\\nBest,\\nThe Sales Team`,\n  attachment: 'brochure_v3.pdf'\n};\n\nconsole.log(`[WARM] Sending brochure to ${lead.email}`);\n\nreturn [{ json: { ...lead, _action: 'brochure_sent', _emailPayload: emailPayload } }];"
+      },
+      "id": "94740697-0801-41d0-ba53-f75cb721f07e",
+      "name": "WARM: Send Brochure Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconsole.warn(`[WARM NO EMAIL] Manual follow-up needed for ${lead.name} (${lead.phone || 'no phone either'})`);\nreturn [{ json: { ...lead, _action: 'warm_manual_needed', _reason: 'no_email' } }];"
+      },
+      "id": "df855d89-27bc-4c72-b5b5-33c14e6316ec",
+      "name": "WARM fallback: Log no-email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nif (!lead.email) {\n  throw new Error('NO_EMAIL: Cannot add to drip list without email');\n}\n\nconst dripPayload = {\n  list_id: 'drip_nurture_q1',\n  email: lead.email,\n  merge_fields: {\n    FNAME: lead.name.split(' ')[0],\n    COMPANY: lead.company,\n    INDUSTRY: lead.industry,\n    SOURCE: lead.source\n  },\n  tags: ['cold-lead', lead.industry.toLowerCase(), lead.source]\n};\n\nconsole.log(`[COLD] Adding ${lead.email} to drip sequence`);\n\nreturn [{ json: { ...lead, _action: 'added_to_drip', _dripPayload: dripPayload } }];"
+      },
+      "id": "5b8211c2-a004-4954-bf11-4a6db3af7134",
+      "name": "COLD: Add to Drip List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconsole.warn(`[COLD DRIP FAIL] Could not add ${lead.name} to drip. Reason: no email.`);\nreturn [{ json: { ...lead, _action: 'drip_failed', _reason: 'no_email' } }];"
+      },
+      "id": "ec0ca88d-e7e0-4e58-9c05-a54e94a05e50",
+      "name": "COLD fallback: Log failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconsole.error('[UNKNOWN CATEGORY] Lead fell through switch — manual review needed:', JSON.stringify(lead));\nreturn [{ json: { ...lead, _action: 'manual_review', _reason: 'unknown_category' } }];"
+      },
+      "id": "86602c29-f4f7-4864-a413-32d104b3205d",
+      "name": "UNKNOWN: Alert + Manual Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nconst logEntry = {\n  ts: new Date().toISOString(),\n  name: lead.name || 'unknown',\n  email: lead.email || 'no-email',\n  company: lead.company || 'unknown',\n  source: lead.source || 'unknown',\n  score: lead._score ?? null,\n  category: lead._category || 'n/a',\n  action: lead._action || 'n/a',\n  needsReview: lead._needsReview || false,\n  scoreReasons: (lead._scoreReasons || []).join('; ')\n};\n\nconsole.log('[AUDIT]', JSON.stringify(logEntry));\nreturn [{ json: logEntry }];"
+      },
+      "id": "9cac5a12-ae00-4ee0-a8ef-d1ef6e6229e2",
+      "name": "Audit Log — Write Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1408,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": 200, \"message\": \"Lead received and is being processed.\" }",
+        "options": {}
+      },
+      "id": "b1774f56-4aa7-4d56-bef2-201845104cc5",
+      "name": "Respond to Web Form",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1408,
+        720
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Trigger: Web Form": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger: Gmail (mock poll)": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge: All Sources": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead Fields": {
+      "main": [
+        [
+          {
+            "node": "IF: Lead is valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Lead is valid?": {
+      "main": [
+        [
+          {
+            "node": "Check Existing Client List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Invalid Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Existing Client List": {
+      "main": [
+        [
+          {
+            "node": "IF: Existing client?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Existing client?": {
+      "main": [
+        [
+          {
+            "node": "Skip — Existing Client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Score Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Lead": {
+      "main": [
+        [
+          {
+            "node": "Categorise: Hot / Warm / Cold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Categorise: Hot / Warm / Cold": {
+      "main": [
+        [
+          {
+            "node": "Switch: Route by Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: Route by Category": {
+      "main": [
+        [
+          {
+            "node": "HOT: Book Sales Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WARM: Send Brochure Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "COLD: Add to Drip List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "UNKNOWN: Alert + Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HOT: Book Sales Calendar": {
+      "main": [
+        [
+          {
+            "node": "Audit Log — Write Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HOT fallback: Slack alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WARM: Send Brochure Email": {
+      "main": [
+        [
+          {
+            "node": "Audit Log — Write Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WARM fallback: Log no-email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "COLD: Add to Drip List": {
+      "main": [
+        [
+          {
+            "node": "Audit Log — Write Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "COLD fallback: Log failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HOT fallback: Slack alert": {
+      "main": [
+        [
+          {
+            "node": "Audit Log — Write Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WARM fallback: Log no-email": {
+      "main": [
+        [
+          {
+            "node": "Audit Log — Write Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "COLD fallback: Log failure": {
+      "main": [
+        [
+          {
+            "node": "Audit Log — Write Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UNKNOWN: Alert + Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Audit Log — Write Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Log — Write Result": {
+      "main": [
+        [
+          {
+            "node": "Respond to Web Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger: WhatsApp (mock webhook)": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "cf208dd1-fe40-4391-88ae-501ec061df3c",
+  "meta": {
+    "instanceId": "1a8d70e9c8918cfb41efabc17ab0b7bd228876c5646a643d7e9d6c8737a889a1"
+  },
+  "id": "aFDypx3D9qCmWQnOmIz9Y",
+  "tags": []
+}
